@@ -25,6 +25,15 @@ asm = ["ark-ff/asm"]
 print-trace = ["ark-std/print-trace"]
 debug-transcript = ["merlin/debug-transcript"]
 
+[profile.release]
+debug = true
+
+[[example]]
+name = "m1prof"
+
+[[example]]
+name = "m2prof"
+
 [[bench]]
 name = "bench"
 harness = false
