@@ -10,9 +10,9 @@ use poly_multiproof::{
 };
 use rand::thread_rng;
 
-const MAX_LOG_SIZE: u32 = 8;
+const MAX_LOG_SIZE: u32 = 10;
 const MAX_SIZE: usize = 2usize.pow(MAX_LOG_SIZE);
-const STEP_SIZE: usize = MAX_SIZE / 32;
+const STEP_SIZE: usize = MAX_SIZE / 8;
 
 fn verify_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("verify");
