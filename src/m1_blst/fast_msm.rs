@@ -1,10 +1,11 @@
 use ark_ff::BigInt;
 use ark_serialize::CanonicalSerialize;
+use ark_std::{vec::Vec, vec};
 use blst::{
     blst_fp, blst_fp2, blst_p1, blst_p1_affine, blst_p1_from_affine, blst_p1_mult,
     blst_p2, blst_p2_affine, blst_p2_from_affine, blst_p2_mult, p1_affines, p2_affines,
 };
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::Error;
 
@@ -140,6 +141,7 @@ mod tests {
     use ark_ec::CurveGroup;
     use ark_ff::UniformRand;
     use rand::thread_rng;
+    use ark_std::vec::Vec;
 
     use crate::curve_msm;
 

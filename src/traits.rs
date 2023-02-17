@@ -1,5 +1,4 @@
 use ark_ec::pairing::Pairing;
-use ark_std::rand::RngCore;
 use merlin::Transcript;
 
 use crate::{Commitment, Error};

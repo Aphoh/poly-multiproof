@@ -1,7 +1,6 @@
 use ark_poly::univariate::DensePolynomial;
 use merlin::Transcript;
-use std::usize;
-
+use ark_std::vec::Vec;
 use ark_ec::pairing::Pairing;
 
 #[cfg(feature = "parallel")]
@@ -99,7 +98,7 @@ mod tests {
     };
     use ark_bls12_381::{Bls12_381, Fr};
     use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
-    use ark_std::UniformRand;
+    use ark_std::{UniformRand, vec::Vec, vec};
     use merlin::Transcript;
 
     #[test]

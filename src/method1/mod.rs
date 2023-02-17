@@ -3,9 +3,8 @@ use crate::{
     traits::{Committer, PolyMultiProofNoPrecomp},
 };
 use ark_poly::univariate::DensePolynomial;
-use ark_std::UniformRand;
+use ark_std::{UniformRand, vec::Vec};
 use merlin::Transcript;
-use std::usize;
 
 use ark_ec::{pairing::Pairing, CurveGroup};
 use ark_std::rand::RngCore;
@@ -43,7 +42,7 @@ impl<E: Pairing> M1NoPrecomp<E> {
         max_pts: usize,
     ) -> Self {
         let n_g2_powers = max_pts + 1;
-        let x_powers = gen_powers(x, std::cmp::max(max_coeffs, n_g2_powers));
+        let x_powers = gen_powers(x, core::cmp::max(max_coeffs, n_g2_powers));
 
         let powers_of_g1 = gen_curve_powers::<E::G1>(x_powers.as_ref(), g1);
         let powers_of_g2 = gen_curve_powers::<E::G2>(x_powers[..n_g2_powers].as_ref(), g2);
@@ -172,7 +171,7 @@ mod tests {
     };
     use ark_bls12_381::{Bls12_381, Fr};
     use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
-    use ark_std::UniformRand;
+    use ark_std::{UniformRand, vec::Vec};
     use merlin::Transcript;
 
     #[test]

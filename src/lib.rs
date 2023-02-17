@@ -1,3 +1,6 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+#![warn(future_incompatible, nonstandard_style)]
+#![cfg_attr(not(feature = "blst"), deny(unsafe_code))]
 use ark_ec::{pairing::Pairing, scalar_mul::fixed_base::FixedBase, CurveGroup, ScalarMul};
 use ark_ff::{Field, PrimeField};
 use ark_poly::{
@@ -5,6 +8,7 @@ use ark_poly::{
     DenseUVPolynomial,
 };
 use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
+use ark_std::{vec::Vec, vec};
 use merlin::Transcript;
 #[cfg(test)]
 use rand::thread_rng as test_rng;
@@ -17,28 +21,29 @@ pub mod lagrange;
 pub mod m1_blst;
 pub mod traits;
 
-#[derive(thiserror::Error, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "std", derive(thiserror::Error))]
 pub enum Error {
-    #[error("Polynomial given is too large")]
+    #[cfg_attr(feature = "std", error("Polynomial given is too large"))]
     PolynomialTooLarge {
         n_coeffs: usize,
         expected_max: usize,
     },
-    #[error("A divisor was zero")]
+    #[cfg_attr(feature = "std", error("A divisor was zero"))]
     DivisorIsZero,
-    #[error("Expected polynomials, none were given")]
+    #[cfg_attr(feature = "std", error("Expected polynomials, none were given"))]
     NoPolynomialsGiven,
-    #[error("Given evaluations were the incorrect size")]
+    #[cfg_attr(feature = "std", error("Given evaluations were the incorrect size"))]
     EvalsIncorrectSize {
         poly: usize,
         n: usize,
         expected: usize,
     },
-    #[error("Serialization error")]
+    #[cfg_attr(feature = "std", error("Serialization error"))]
     SerializationError,
-    #[error("Not enough g2 powers")]
+    #[cfg_attr(feature = "std", error("Not enough g2 powers"))]
     NotEnoughG2Powers,
-    #[error("Not given any points")]
+    #[cfg_attr(feature = "std", error("Not given any points"))]
     NoPointsGiven,
 }
 

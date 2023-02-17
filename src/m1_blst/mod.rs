@@ -4,10 +4,9 @@ use crate::{
     traits::{Committer, PolyMultiProofNoPrecomp},
 };
 use ark_poly::univariate::DensePolynomial;
-use ark_std::UniformRand;
+use ark_std::{UniformRand, vec::Vec};
 use blst::{p1_affines, p2_affines};
 use merlin::Transcript;
-use std::usize;
 
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
 use ark_std::rand::RngCore;
@@ -49,7 +48,7 @@ impl M1NoPrecomp {
 
     pub fn new_from_scalar(x: Fr, g1: G1, g2: G2, max_coeffs: usize, max_pts: usize) -> Self {
         let n_g2_powers = max_pts + 1;
-        let x_powers = gen_powers(x, std::cmp::max(max_coeffs, n_g2_powers));
+        let x_powers = gen_powers(x, core::cmp::max(max_coeffs, n_g2_powers));
 
         let powers_of_g1 = gen_curve_powers_proj::<G1>(x_powers.as_ref(), g1);
         let powers_of_g2 = gen_curve_powers_proj::<G2>(x_powers[..n_g2_powers].as_ref(), g2);
@@ -184,7 +183,7 @@ mod tests {
     };
     use ark_bls12_381::Fr;
     use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
-    use ark_std::UniformRand;
+    use ark_std::{UniformRand, vec, vec::Vec};
     use merlin::Transcript;
 
     #[test]

@@ -1,5 +1,5 @@
-use std::ops::Mul;
-
+use core::ops::Mul;
+use ark_std::{vec, vec::Vec};
 use ark_ff::FftField;
 use ark_poly::{univariate::DensePolynomial, DenseUVPolynomial, Polynomial};
 
