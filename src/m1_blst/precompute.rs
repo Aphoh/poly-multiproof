@@ -8,7 +8,7 @@ use rayon::prelude::*;
 
 use super::{fast_msm, vanishing_polynomial, Error, Proof};
 use crate::lagrange::LagrangeInterpContext;
-use crate::traits::{Committer, PolyMultiProof, PolyMultiProofNoPrecomp};
+use crate::traits::{Committer, PolyMultiProof};
 use crate::{cfg_iter, Commitment};
 
 pub struct M1Precomp {
@@ -50,24 +50,6 @@ impl Committer<Bls12_381> for M1Precomp {
 impl PolyMultiProof<Bls12_381> for M1Precomp {
     type Proof = Proof;
 
-    fn new(
-        max_coeffs: usize,
-        point_sets: Vec<Vec<Fr>>,
-        r: &mut impl ark_std::rand::RngCore,
-    ) -> Result<Self, Error> {
-        let inner = super::M1NoPrecomp::new(
-            max_coeffs,
-            point_sets
-                .iter()
-                .map(|set| set.len())
-                .max_by(Ord::cmp)
-                .ok_or(Error::NoPointsGiven)?
-                .into(),
-            r,
-        )?;
-        Self::from_inner(inner, point_sets)
-    }
-
     fn open(
         &self,
         transcript: &mut Transcript,
@@ -108,6 +90,7 @@ impl PolyMultiProof<Bls12_381> for M1Precomp {
 mod tests {
     use super::M1Precomp;
     use crate::{
+        m1_blst::M1NoPrecomp,
         test_rng,
         traits::{Committer, PolyMultiProof},
     };
@@ -121,8 +104,8 @@ mod tests {
         let points = (0..30)
             .map(|_| Fr::rand(&mut test_rng()))
             .collect::<Vec<_>>();
-        let s = M1Precomp::new(256, vec![points.clone()], &mut test_rng())
-            .expect("Failed to construct");
+        let s = M1NoPrecomp::new(256, 30, &mut test_rng());
+        let s = M1Precomp::from_inner(s, vec![points.clone()]).expect("Failed to construct");
         let polys = (0..20)
             .map(|_| DensePolynomial::<Fr>::rand(50, &mut test_rng()))
             .collect::<Vec<_>>();

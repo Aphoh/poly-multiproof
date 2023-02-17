@@ -32,12 +32,7 @@ pub struct M1NoPrecomp {
 
 impl Clone for M1NoPrecomp {
     fn clone(&self) -> Self {
-        Self {
-            powers_of_g1: self.powers_of_g1.clone(),
-            powers_of_g2: self.powers_of_g2.clone(),
-            prepped_g1s: fast_msm::prep_g1s(&self.powers_of_g1),
-            prepped_g2s: fast_msm::prep_g2s(&self.powers_of_g2),
-        }
+        Self::new_from_powers(self.powers_of_g1.clone(), self.powers_of_g2.clone())
     }
 }
 
@@ -45,20 +40,39 @@ impl Clone for M1NoPrecomp {
 pub struct Proof(G1Affine);
 
 impl M1NoPrecomp {
-    pub fn new_from_powers(g1s: &Vec<G1>, g2s: &Vec<G2>) -> Self {
-        Self {
-            powers_of_g1: g1s.clone(),
-            powers_of_g2: g2s.clone(),
-            prepped_g1s: fast_msm::prep_g1s(g1s),
-            prepped_g2s: fast_msm::prep_g2s(g2s),
-        }
+    pub fn new(max_coeffs: usize, max_pts: usize, rng: &mut impl RngCore) -> Self {
+        let x = Fr::rand(rng);
+        let g1 = G1::rand(rng);
+        let g2 = G2::rand(rng);
+        Self::new_from_scalar(x, g1, g2, max_coeffs, max_pts)
     }
 
-    pub fn new_from_affine(g1s: &Vec<G1Affine>, g2s: &Vec<G2Affine>) -> Self {
+    pub fn new_from_scalar(x: Fr, g1: G1, g2: G2, max_coeffs: usize, max_pts: usize) -> Self {
+        let n_g2_powers = max_pts + 1;
+        let x_powers = gen_powers(x, std::cmp::max(max_coeffs, n_g2_powers));
+
+        let powers_of_g1 = gen_curve_powers_proj::<G1>(x_powers.as_ref(), g1);
+        let powers_of_g2 = gen_curve_powers_proj::<G2>(x_powers[..n_g2_powers].as_ref(), g2);
+
+        Self::new_from_powers(powers_of_g1, powers_of_g2)
+    }
+
+    pub fn new_from_affine(g1s: &[G1Affine], g2s: &[G2Affine]) -> Self {
         Self::new_from_powers(
-            &g1s.iter().map(|i| i.into_group()).collect::<Vec<_>>(),
-            &g2s.iter().map(|i| i.into_group()).collect::<Vec<_>>(),
+            g1s.iter().map(|i| i.into_group()).collect::<Vec<_>>(),
+            g2s.iter().map(|i| i.into_group()).collect::<Vec<_>>(),
         )
+    }
+
+    pub fn new_from_powers(powers_of_g1: Vec<G1>, powers_of_g2: Vec<G2>) -> Self {
+        let prepped_g1s = fast_msm::prep_g1s(&powers_of_g1);
+        let prepped_g2s = fast_msm::prep_g2s(&powers_of_g2);
+        Self {
+            powers_of_g1,
+            powers_of_g2,
+            prepped_g1s,
+            prepped_g2s,
+        }
     }
 
     fn open_with_vanishing_poly(
@@ -132,28 +146,6 @@ impl Committer<Bls12_381> for M1NoPrecomp {
 
 impl PolyMultiProofNoPrecomp<Bls12_381> for M1NoPrecomp {
     type Proof = Proof;
-    fn new(
-        max_coeffs: usize,
-        max_pts: Option<usize>,
-        rng: &mut impl RngCore,
-    ) -> Result<Self, Error> {
-        let x = Fr::rand(rng);
-        let max_pts = max_pts.unwrap_or(max_coeffs) + 1;
-        let x_powers = gen_powers(x, std::cmp::max(max_coeffs, max_pts));
-
-        let powers_of_g1 = gen_curve_powers_proj::<G1>(x_powers.as_ref(), rng);
-        let powers_of_g2 = gen_curve_powers_proj::<G2>(x_powers[..max_pts].as_ref(), rng);
-
-        let prepped_g1s = fast_msm::prep_g1s(&powers_of_g1);
-        let prepped_g2s = fast_msm::prep_g2s(&powers_of_g2);
-
-        Ok(M1NoPrecomp {
-            powers_of_g1,
-            powers_of_g2,
-            prepped_g1s,
-            prepped_g2s,
-        })
-    }
 
     fn open(
         &self,
@@ -197,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_basic_open_works() {
-        let s = M1NoPrecomp::new(256, 32.into(), &mut test_rng()).unwrap();
+        let s = M1NoPrecomp::new(256, 32, &mut test_rng());
         let points = (0..30)
             .map(|_| Fr::rand(&mut test_rng()))
             .collect::<Vec<_>>();
@@ -226,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_single_row_works() {
-        let s = M1NoPrecomp::new(256, 32.into(), &mut test_rng()).unwrap();
+        let s = M1NoPrecomp::new(256, 32, &mut test_rng());
         let points = (0..30)
             .map(|_| Fr::rand(&mut test_rng()))
             .collect::<Vec<_>>();

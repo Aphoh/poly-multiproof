@@ -14,7 +14,7 @@ use poly_multiproof::{
     method1::precompute as m1_precomp,
     method2,
     method2::precompute as m2_precomp,
-    traits::{Committer, PolyMultiProof, PolyMultiProofNoPrecomp},
+    traits::{Committer, PolyMultiProof},
     Commitment,
 };
 use rand::thread_rng;
@@ -72,10 +72,14 @@ fn run_open<'a, E: Pairing, P: PolyMultiProof<E>, M: Measurement>(
 
 fn verify_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("verify");
-    let m1 = M1::new(WIDTH, WIDTH.into(), &mut thread_rng()).unwrap();
+    let m1 = M1::new(WIDTH, WIDTH.into(), &mut thread_rng());
     #[cfg(feature = "blst")]
     let m1_blst = M1Blst::new_from_affine(&m1.powers_of_g1, &m1.powers_of_g2);
-    let m2 = M2::new_from_powers(&m1.powers_of_g1, &m1.powers_of_g2).unwrap();
+    let m2 = M2::new_from_affine(
+        m1.powers_of_g1.clone(),
+        m1.powers_of_g2[0],
+        m1.powers_of_g2[1],
+    );
     let grid = TestGrid::<Fr>::gen_grid(WIDTH, HEIGHT);
     let commits = grid
         .coeffs
@@ -126,10 +130,14 @@ fn verify_benchmark(c: &mut Criterion) {
 
 fn open_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("open");
-    let m1 = M1::new(WIDTH, WIDTH.into(), &mut thread_rng()).unwrap();
+    let m1 = M1::new(WIDTH, WIDTH.into(), &mut thread_rng());
     #[cfg(feature = "blst")]
     let m1_blst = M1Blst::new_from_affine(&m1.powers_of_g1, &m1.powers_of_g2);
-    let m2 = M2::new_from_powers(&m1.powers_of_g1, &m1.powers_of_g2).unwrap();
+    let m2 = M2::new_from_affine(
+        m1.powers_of_g1.clone(),
+        m1.powers_of_g2[0],
+        m1.powers_of_g2[1],
+    );
     let grid = TestGrid::<Fr>::gen_grid(WIDTH, HEIGHT);
 
     for n_pts in (1..WIDTH).step_by(WIDTH_STEP).filter(|i| i < &128) {

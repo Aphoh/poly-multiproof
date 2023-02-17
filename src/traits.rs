@@ -11,12 +11,6 @@ pub trait Committer<E: Pairing> {
 pub trait PolyMultiProof<E: Pairing>: Sized {
     type Proof: Clone;
 
-    fn new(
-        max_coeffs: usize,
-        point_sets: Vec<Vec<E::ScalarField>>,
-        r: &mut impl RngCore,
-    ) -> Result<Self, Error>;
-
     fn open(
         &self,
         transcript: &mut Transcript,
@@ -37,8 +31,6 @@ pub trait PolyMultiProof<E: Pairing>: Sized {
 
 pub trait PolyMultiProofNoPrecomp<E: Pairing>: Sized {
     type Proof: Clone;
-
-    fn new(max_coeffs: usize, max_pts: Option<usize>, r: &mut impl RngCore) -> Result<Self, Error>;
 
     fn open(
         &self,

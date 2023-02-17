@@ -9,14 +9,15 @@ use ark_poly::{EvaluationDomain, GeneralEvaluationDomain, Radix2EvaluationDomain
 use ark_serialize::{CanonicalSerialize, Compress};
 use ark_std::{end_timer, start_timer};
 use merlin::Transcript;
-use poly_multiproof::{
-    traits::{Committer, PolyMultiProof},
-    Commitment, cfg_iter,
-};
 #[cfg(feature = "blst")]
-use poly_multiproof::m1_blst::precompute::M1Precomp;
+use poly_multiproof::m1_blst::{precompute::M1Precomp, M1NoPrecomp};
 #[cfg(not(feature = "blst"))]
-use poly_multiproof::method1::precompute::M1Precomp;
+use poly_multiproof::method1::{precompute::M1Precomp, M1NoPrecomp};
+use poly_multiproof::{
+    cfg_iter,
+    traits::{Committer, PolyMultiProof},
+    Commitment,
+};
 use rand::{thread_rng, RngCore};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -26,7 +27,7 @@ use rayon::prelude::*;
 //******************************
 
 // The width of the grid
-const GRID_WIDTH: usize = 4096;
+const GRID_WIDTH: usize = 256;
 // The height of the grid (before erasure encoding)
 const GRID_HEIGHT: usize = 256;
 // The number of pieces to break the grid into horizontally.
@@ -81,6 +82,7 @@ impl Grid {
         let mut interp_rows = vec![vec![Fr::zero(); GRID_WIDTH]; 2 * rows.len()];
 
         let erasure_t = start_timer!(|| "erasure encoding columns");
+
         for j in 0..GRID_WIDTH {
             let mut col = Vec::with_capacity(rows.len());
             for i in 0..rows.len() {
@@ -92,12 +94,36 @@ impl Grid {
                 interp_rows[i][j] = col[i];
             }
         }
+
+        for j in 0..GRID_WIDTH {
+            let mut col = Vec::with_capacity(rows.len());
+            for i in 0..rows.len() {
+                col.push(rows[i][j]);
+            }
+            domain_h.ifft_in_place(&mut col);
+            domain_2h.fft_in_place(&mut col);
+            for i in 0..col.len() {
+                interp_rows[i][j] = col[i];
+            }
+        }
+
+        let domain_w = GeneralEvaluationDomain::<Fr>::new(GRID_WIDTH).unwrap();
+        let domain_2w = GeneralEvaluationDomain::<Fr>::new(2 * GRID_WIDTH).unwrap();
+        assert_eq!(domain_w.size(), GRID_WIDTH);
+        assert_eq!(domain_2w.size(), 2 * GRID_WIDTH);
+        for i in 0..2 * GRID_HEIGHT {
+            let mut a = domain_w.ifft(&interp_rows[i]);
+            domain_2w.fft_in_place(&mut a);
+        }
+
         end_timer!(erasure_t);
 
         let domain_w = GeneralEvaluationDomain::<Fr>::new(GRID_WIDTH).unwrap();
 
         let poly_t = start_timer!(|| "computing polynomials from evals");
-        let polys: Vec<_> = cfg_iter!(interp_rows).map(|(_, row)| domain_w.ifft(&row)).collect();
+        let polys: Vec<_> = cfg_iter!(interp_rows)
+            .map(|(_, row)| domain_w.ifft(&row))
+            .collect();
         end_timer!(poly_t);
 
         let commit_t = start_timer!(|| "computing commitments");
@@ -140,13 +166,13 @@ fn main() {
     }
 
     let pmp_t = start_timer!(|| "create pmp");
-    let pmp = M1Precomp::new(GRID_WIDTH, point_sets.clone(), &mut thread_rng())
-        .expect("Failed to make pmp");
+    let pmp = M1NoPrecomp::new(GRID_WIDTH, CHUNK_W, &mut thread_rng());
+    let pmp = M1Precomp::from_inner(pmp, point_sets).expect("Failed to make pmp");
     end_timer!(pmp_t);
 
     let grid_t = start_timer!(|| "create grid");
     let grid = Grid::from_data(data, &pmp);
-    assert_eq!(grid.polys.len(), 2*GRID_HEIGHT);
+    assert_eq!(grid.polys.len(), 2 * GRID_HEIGHT);
     end_timer!(grid_t);
 
     let coords: Vec<_> = (0..N_CHUNKS_H)

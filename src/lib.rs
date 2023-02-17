@@ -5,7 +5,6 @@ use ark_poly::{
     DenseUVPolynomial,
 };
 use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
-use ark_std::rand::RngCore;
 use merlin::Transcript;
 #[cfg(test)]
 use rand::thread_rng as test_rng;
@@ -113,20 +112,19 @@ pub(crate) fn linear_combination<F: Field>(
 
 pub(crate) fn gen_curve_powers_proj<G: ScalarMul + CurveGroup>(
     powers: &[G::ScalarField],
-    rng: &mut impl RngCore,
+    base: G,
 ) -> Vec<G> {
-    let g = G::rand(rng);
     let window_size = FixedBase::get_mul_window_size(powers.len());
     let scalar_size = G::ScalarField::MODULUS_BIT_SIZE as usize;
-    let g_table = FixedBase::get_window_table::<G>(scalar_size, window_size, g);
+    let g_table = FixedBase::get_window_table::<G>(scalar_size, window_size, base);
     FixedBase::msm::<G>(scalar_size, window_size, &g_table, powers)
 }
 
 pub(crate) fn gen_curve_powers<G: ScalarMul + CurveGroup>(
     powers: &[G::ScalarField],
-    rng: &mut impl RngCore,
+    base: G,
 ) -> Vec<G::Affine> {
-    G::normalize_batch(&gen_curve_powers_proj(powers, rng))
+    G::normalize_batch(&gen_curve_powers_proj(powers, base))
 }
 
 pub(crate) fn get_field_size<F: Field + CanonicalSerialize>() -> usize {

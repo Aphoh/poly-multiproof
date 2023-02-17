@@ -14,8 +14,7 @@ use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
 use ark_std::rand::RngCore;
 
 use crate::{
-    get_challenge, get_field_size, transcribe_generic, transcribe_points_and_evals,
-    Commitment,
+    get_challenge, get_field_size, transcribe_generic, transcribe_points_and_evals, Commitment,
 };
 
 use crate::{
@@ -32,12 +31,39 @@ pub struct M2NoPrecomp<E: Pairing> {
 }
 
 impl<E: Pairing> M2NoPrecomp<E> {
-    pub fn new_from_powers(g1: &Vec<E::G1Affine>, g2: &Vec<E::G2Affine>) -> Result<Self, Error> {
-        Ok(Self {
-            powers_of_g1: g1.clone(),
-            g2: *g2.get(0).ok_or(Error::NotEnoughG2Powers)?,
-            g2x: *g2.get(1).ok_or(Error::NotEnoughG2Powers)?,
-        })
+    pub fn new_from_affine(
+        powers_of_g1: Vec<E::G1Affine>,
+        g2: E::G2Affine,
+        g2x: E::G2Affine,
+    ) -> Self {
+        Self {
+            powers_of_g1,
+            g2,
+            g2x,
+        }
+    }
+
+    pub fn new_from_powers(powers_of_g1: &[E::G1], g2: &E::G2, g2x: &E::G2) -> Self {
+        Self::new_from_affine(
+            powers_of_g1.iter().map(|s| s.into_affine()).collect(),
+            g2.into_affine(),
+            g2x.into_affine(),
+        )
+    }
+
+    pub fn new(max_coeffs: usize, rng: &mut impl RngCore) -> Self {
+        let x = E::ScalarField::rand(rng);
+        let g1 = E::G1::rand(rng);
+        let g2 = E::G2::rand(rng);
+        Self::new_from_scalar(x, g1, g2, max_coeffs)
+    }
+
+    pub fn new_from_scalar(x: E::ScalarField, g1: E::G1, g2: E::G2, max_coeffs: usize) -> Self {
+        let x_powers = gen_powers(x, max_coeffs);
+        let powers_of_g1 = gen_curve_powers::<E::G1>(x_powers.as_ref(), g1);
+        let g2x = (g2 * x).into_affine();
+
+        Self::new_from_affine(powers_of_g1, g2.into_affine(), g2x)
     }
 }
 
@@ -133,25 +159,6 @@ impl<E: Pairing> Committer<E> for M2NoPrecomp<E> {
 impl<E: Pairing> PolyMultiProofNoPrecomp<E> for M2NoPrecomp<E> {
     type Proof = Proof<E>;
 
-    fn new(
-        max_coeffs: usize,
-        _max_pts: Option<usize>,
-        rng: &mut impl RngCore,
-    ) -> Result<M2NoPrecomp<E>, Error> {
-        let x = E::ScalarField::rand(rng);
-        let x_powers = gen_powers(x, max_coeffs);
-
-        let powers_of_g1 = gen_curve_powers::<E::G1>(x_powers.as_ref(), rng);
-        let g2 = E::G2::rand(rng).into_affine();
-        let g2x = (g2 * x).into_affine();
-
-        Ok(M2NoPrecomp {
-            powers_of_g1,
-            g2,
-            g2x,
-        })
-    }
-
     fn open(
         &self,
         transcript: &mut Transcript,
@@ -193,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_basic_open_works() {
-        let s = M2NoPrecomp::<Bls12_381>::new(256, None, &mut test_rng()).unwrap();
+        let s = M2NoPrecomp::<Bls12_381>::new(256, &mut test_rng());
         let points = (0..30)
             .map(|_| Fr::rand(&mut test_rng()))
             .collect::<Vec<_>>();

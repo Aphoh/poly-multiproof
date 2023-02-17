@@ -28,6 +28,43 @@ pub struct M1NoPrecomp<E: Pairing> {
 pub struct Proof<E: Pairing>(E::G1Affine);
 
 impl<E: Pairing> M1NoPrecomp<E> {
+    pub fn new(max_coeffs: usize, max_pts: usize, rng: &mut impl RngCore) -> Self {
+        let x = E::ScalarField::rand(rng);
+        let g1 = E::G1::rand(rng);
+        let g2 = E::G2::rand(rng);
+        Self::new_from_scalar(x, g1, g2, max_coeffs, max_pts)
+    }
+
+    pub fn new_from_scalar(
+        x: E::ScalarField,
+        g1: E::G1,
+        g2: E::G2,
+        max_coeffs: usize,
+        max_pts: usize,
+    ) -> Self {
+        let n_g2_powers = max_pts + 1;
+        let x_powers = gen_powers(x, std::cmp::max(max_coeffs, n_g2_powers));
+
+        let powers_of_g1 = gen_curve_powers::<E::G1>(x_powers.as_ref(), g1);
+        let powers_of_g2 = gen_curve_powers::<E::G2>(x_powers[..n_g2_powers].as_ref(), g2);
+
+        Self::new_from_affine(powers_of_g1, powers_of_g2)
+    }
+
+    pub fn new_from_powers(powers_of_g1: &[E::G1], powers_of_g2: &[E::G2]) -> Self {
+        Self {
+            powers_of_g1: powers_of_g1.iter().map(|s| s.into_affine()).collect(),
+            powers_of_g2: powers_of_g2.iter().map(|s| s.into_affine()).collect(),
+        }
+    }
+
+    pub fn new_from_affine(powers_of_g1: Vec<E::G1Affine>, powers_of_g2: Vec<E::G2Affine>) -> Self {
+        Self {
+            powers_of_g1,
+            powers_of_g2,
+        }
+    }
+
     fn open_with_vanishing_poly(
         &self,
         transcript: &mut Transcript,
@@ -97,19 +134,6 @@ impl<E: Pairing> Committer<E> for M1NoPrecomp<E> {
 
 impl<E: Pairing> PolyMultiProofNoPrecomp<E> for M1NoPrecomp<E> {
     type Proof = Proof<E>;
-    fn new(max_coeffs: usize, max_pts: Option<usize>, rng: &mut impl RngCore) -> Result<Self, Error> {
-        let x = E::ScalarField::rand(rng);
-        let max_pts = max_pts.unwrap_or(max_coeffs) + 1;
-        let x_powers = gen_powers(x, std::cmp::max(max_coeffs, max_pts));
-
-        let powers_of_g1 = gen_curve_powers::<E::G1>(x_powers.as_ref(), rng);
-        let powers_of_g2 = gen_curve_powers::<E::G2>(x_powers[..max_pts].as_ref(), rng);
-
-        Ok(M1NoPrecomp {
-            powers_of_g1,
-            powers_of_g2,
-        })
-    }
 
     fn open(
         &self,
@@ -153,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_basic_open_works() {
-        let s = M1NoPrecomp::<Bls12_381>::new(256, 30.into(), &mut test_rng()).unwrap();
+        let s = M1NoPrecomp::<Bls12_381>::new(256, 30, &mut test_rng());
         let points = (0..30)
             .map(|_| Fr::rand(&mut test_rng()))
             .collect::<Vec<_>>();
